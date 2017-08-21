@@ -1,0 +1,34 @@
+---
+- name: Configure {{ item.name }} zone
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-upsert-zone "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
+      "{{ item.name }}" "{{ item.kind | default('Master') }}" "{{ item.soaEdit | default('DEFAULT') }}" "{{ item.soaEditApi | default('') }}"
+      "{{ item.dnssec | default(false) }}" "{{ item.nsec3Iterations | default(5) }}" "{{ item.nsec3Salt | default('dada') }}" {{ item.defaultNameservers }}
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+
+- name: Configure domain metadata for {{ item.name }}
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-update-domain-metadata "{{ item.name }}"
+      "{{ meta.key }}" {% if meta.value is iterable and meta.value is not string %}"{{ meta.value | join('" "') }}"{% else %}"{{ meta.value }}"{% endif %}
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  with_dict: "{{ item.metadata }}"
+  loop_control:
+    loop_var: meta
+  when: item.metadata is defined
+
+- name: Remove unknown metadata from {{ item.name }}
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-delete-domain-metadata "{{ item.name }}"
+      "{{ meta.key }}"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  with_dict: "{{ item.metadata | default({'SOA-EDIT': ''}) }}"
+  loop_control:
+    loop_var: meta

@@ -1,0 +1,17 @@
+#!/bin/bash -e
+
+set -o nounset
+umask 177
+
+# Parameters
+zone="${1}"
+name="${2}"
+shift 2
+
+searchFor="$(echo "${@}" | LC_ALL=C sort)"
+current="$(pdnsutil get-meta "${zone}" "${name}" | grep "^${name} = " | cut -d' ' -f3- | sed -e $'s/, /\\\n/g' | LC_ALL=C sort | tr '\n' ' ' | xargs)"
+
+if [ "${searchFor}" != "${current}" ]; then
+	pdnsutil set-meta "${zone}" "${name}" "${@}"
+	echo CHANGED
+fi

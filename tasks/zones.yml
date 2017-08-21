@@ -1,0 +1,14 @@
+---
+- include: single-zone.yml
+  with_items: "{{ pdns_auth_api_zones | mandatory }}"
+
+- name: Delete unknown zones
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
+      "{{ pdns_auth_api_zones | map(attribute='name') | list | join(' ')}}"
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  when: pdns_auth_api_remove_unknown_zones
