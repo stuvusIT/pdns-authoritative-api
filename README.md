@@ -32,6 +32,29 @@ Arch Linux or Ubuntu
 | `nsec3Salt`          | `dada`             | Salt to use when hashing for NSEC3                                                                                                                  |
 | `defaultNameservers` | :heavy_check_mark: | List of NS records (for `Master` and `Native` zones), or list of masters (for `Slave` zones). This is only used when creating the zone from scratch |
 | `metadata`           |                    | Dict with the domain metadata. Items that are present in the database, but not here are removed                                                     |
+| `rrsets`             | :heavy_check_mark: | List with all RRsets in this zone (see below)                                                                                                       |
+
+### RRsets
+
+An RRset is identified by the name and the type.
+If both are the same, and the TTL or the records differ, the rrset is modified.
+Unknown RRsets are removed.
+
+| Name      | Default/Required   | Description                                                       |
+|-----------|:------------------:|-------------------------------------------------------------------|
+| `name`    | :heavy_check_mark: | Name of this RRset                                                |
+| `type`    | :heavy_check_mark: | Record type of this RRset                                         |
+| `ttl`     | :heavy_check_mark: | TTL of this RRset                                                 |
+| `records` | :heavy_check_mark: | List of all records in this RRset. See below for more information |
+
+### Records
+
+| Name       | Default/Required   | Description                                                                                                                                   |
+|------------|:------------------:|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `content`  | :heavy_check_mark: | Content of this record                                                                                                                        |
+| `disabled` | `false`            | Whether the record is marked as disabled for PowerDNS                                                                                         |
+| `set-ptr`  | `false`            | Set the matching PTR record in the reverse zone (see the PowerDNS documentation). If this RRset is not changed, the PTR record is not written |
+
 
 ## Example Playbook
 
@@ -52,6 +75,18 @@ Arch Linux or Ubuntu
            ALLOW-AXFR-FROM:
              - AUTO-NS
              - 2001:db8::/48
+         rrsets:
+           - name: example.com
+             type: SOA
+             ttl: 86400
+             records:
+               - content: "ns1.example.com admin.example.com 0 3600 1800 604800 600"
+           - name: foo.example.com
+             type: A
+             ttl: 9600
+             records:
+               - content: "10.0.0.2"
+                 set-ptr: true
 ```
 
 ## License
