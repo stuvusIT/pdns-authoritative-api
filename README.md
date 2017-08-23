@@ -16,7 +16,7 @@ Arch Linux or Ubuntu
 | `pdns_auth_api_connect`               | :heavy_check_mark: | Connect to this URL (e.g. `http://127.0.0.1:1234`)  |
 | `pdns_auth_api_server`                | `localhost`        | Server instance to connect to                       |
 | `pdns_auth_api_key`                   | :heavy_check_mark: | API Key to use (may be empty if you don't have one) |
-| `pdns_auth_api_zones`                 | :heavy_check_marl: | List of DNS zones (see below)                       |
+| `pdns_auth_api_zones`                 | :heavy_check_mark: | List of DNS zones (see below)                       |
 | `pdns_auth_api_remove_unknown_zones:` | `false`            | Delete zones that are now known to this role        |
 
 ### DNS Zones
