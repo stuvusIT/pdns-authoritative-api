@@ -19,7 +19,7 @@ Arch Linux or Ubuntu
 | `pdns_auth_api_zones`                 | :heavy_check_marl: | List of DNS zones (see below)                       |
 | `pdns_auth_api_remove_unknown_zones:` | `false`            | Delete zones that are now known to this role        |
 
-#### DNS Zones
+### DNS Zones
 
 | Name                 | Default/Required   | Description                                                                                                                                         |
 |----------------------|:------------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------|
