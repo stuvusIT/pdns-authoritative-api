@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -o nounset
+umask 177
+
+# Parameters
+url="${1}/api/v1/servers/${2}"
+# $2 is the server
+apikey="${apikey:-}"
+zonename="${3}"
+# The rrset is passed via an env variable because the quotes are mangled when
+# specifying the JSON on the command line.
+expected="${rrset:-}"
+
+# Ensure every record has a "disabled" field
+expected="$(echo "${expected}" | jq  '. + { records: [(.records[] | .disabled = if has("disabled") then .disabled else false end )] }')"
+
+# See what name and type we expect
+eval "$(echo "${expected}" | jq -r '@sh "expectedName=\(.name) expectedType=\(.type) expectedTtl=\(.ttl)"')"
+
+# This asks the server for the zone, and filters out the correct rrset
+current="$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq '.rrsets[] | select(.name == "'${expectedName}'." and .type == "'${expectedType}'")')"
+# Get the current TTL
+eval "$(echo "${current}" | jq -r '@sh "currentTtl=\(.ttl)"')"
+
+if [ "${currentTtl}" = "${expectedTtl}" ]; then
+	# Do the records differ?
+
+	# Remove set-ptr because it's not returned by the API
+	expectedWithoutPtr="$(echo "${expected}" | jq '. | del(.records[]."set-ptr")')"
+
+	# This compares two JSON objects
+	# Taken from: https://stackoverflow.com/a/31933234/1432545
+	compare="$(jq --argfile a <(echo "${expectedWithoutPtr}" | jq 'del(.name)') --argfile b <(echo "${current}" | jq 'del(.name,.comments)') -n 'def post_recurse(f): def r: (f | select(. != null) | r), .; r; def post_recurse: post_recurse(.[]?); ($a | (post_recurse | arrays) |= sort) as $a | ($b | (post_recurse | arrays) |= sort) as $b | $a == $b')"
+
+	if [ "${compare}" = true ]; then
+		exit
+	fi
+fi
+
+# If we made it here, we must replace the object
+
+# The jq part adds "changetype: REPLACE" to the JSON, and
+# adds the trailing dot to the name
+ret="$(curl -s -X PATCH -o /dev/null -w "%{http_code}" \
+	--data "{ \"rrsets\": [ $(echo "${expected}" | jq '. + {changetype: "REPLACE"} + {name: (.name + ".")}') ] }" \
+	-H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")"
+
+# Check response code
+[ "${ret}" = 204 ] || exit "${ret}"
+echo CHANGED

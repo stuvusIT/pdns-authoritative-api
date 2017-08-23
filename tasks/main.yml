@@ -39,5 +39,7 @@
     - delete-zones
     - update-domain-metadata
     - delete-domain-metadata
+    - upsert-rrset
+    - delete-rrsets
 
 - include: zones.yml

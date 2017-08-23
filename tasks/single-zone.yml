@@ -32,3 +32,34 @@
   with_dict: "{{ item.metadata | default({'SOA-EDIT': ''}) }}"
   loop_control:
     loop_var: meta
+
+- name: Upsert RRsets
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-upsert-rrset "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
+      "{{ item.name }}"
+  environment:
+    rrset: "{{ rrset | to_json }}"
+    apikey: "{{ pdns_auth_api_key }}"
+  register: rrset_out
+  changed_when: "'CHANGED' in rrset_out.stdout | default('')"
+  with_items: "{{ item.rrsets }}"
+  loop_control:
+    loop_var: rrset
+
+- name: Remove unknown RRsets
+  command:
+    cmd: >
+      /usr/local/bin/pdns-auth-api-delete-rrsets "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
+      "{{ item.name }}"
+
+  environment:
+    rrsets: "{{ item.rrsets | to_json }}"
+    apikey: "{{ pdns_auth_api_key }}"
+  register: rrset_delete_out
+  changed_when: "'CHANGED' in rrset_delete_out.stdout | default('')"
+
+# We have to manually rectify the zone, because it's not implemented in the API yet
+- name: Rectify zone
+  command: pdnsutil rectify-zone "{{ item.name }}"
+  when: rrset_out.changed or rrset_delete_out.changed
