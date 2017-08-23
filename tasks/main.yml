@@ -1,0 +1,43 @@
+---
+- name: Update repositories cache (apt)
+  apt:
+    update_cache: yes
+  changed_when: false
+  when: ansible_pkg_mgr == "apt"
+
+- name: Install required packages (apt)
+  apt:
+    name: "{{ item }}"
+  with_items:
+    - curl
+    - jq
+  when: ansible_pkg_mgr == "apt"
+
+- name: Update repositories cache (pacman)
+  pacman:
+    update_cache: yes
+  changed_when: false
+  when: ansible_pkg_mgr == "pacman"
+
+- name: Install required packages (pacman)
+  pacman:
+    name: "{{ item }}"
+  with_items:
+    - curl
+    - jq
+  when: ansible_pkg_mgr == "pacman"
+
+- name: Copy helper scripts
+  copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/pdns-auth-api-{{ item }}"
+    owner: root
+    group: root
+    mode: 0700
+  with_items:
+    - upsert-zone
+    - delete-zones
+    - update-domain-metadata
+    - delete-domain-metadata
+
+- include: zones.yml

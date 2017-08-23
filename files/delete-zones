@@ -1,0 +1,28 @@
+#!/bin/bash -e
+
+set -o nounset
+
+# Parameters
+url="${1}/api/v1/servers/${2}"
+# $2 is the server
+apikey="${apikey:-}"
+shift 2
+
+changed=0
+while IFS='' read -r dom; do
+	ok=0
+	for param in "${@}"; do
+		if [ "${dom:1:-2}" = "${param}" ]; then
+			ok=1
+			break
+		fi
+		if [ "${ok}" = 0 ]; then
+			changed=1
+			curl -s -X DELETE -o /dev/null -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
+		fi
+	done
+done < <(curl -s -H "X-API-Key: ${apikey}" "${url}/zones" | jq '.[] | .name')
+
+if [ "${changed}" = 1 ]; then
+	echo CHANGED
+fi

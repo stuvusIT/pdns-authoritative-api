@@ -1,0 +1,103 @@
+#!/bin/bash -e
+
+set -o nounset
+umask 177
+
+# Parameters
+url="${1}/api/v1/servers/${2}"
+# $2 is the server
+apikey="${apikey:-}"
+zonename="${3}"
+kind="${4}"
+soaEdit="${5}"
+soaEditApi="${6}"
+dnssec="${7}"
+nsec3Iterations="${8}"
+nsec3Salt="${9}"
+shift 9
+
+if [ "${#}" = 0 ]; then
+	echo "Missing nameservers"
+	exit 1
+fi
+
+# Initial JSON
+json="{
+	\"name\": \"${zonename}.\",
+	\"kind\": \"${kind}\",
+	\"soa_edit\": \"${soaEdit}\",
+	\"soa_edit_api\": \"${soaEditApi}\","
+
+if [ "${kind}" = 'Slave' ]; then
+	json="${json}
+		\"masters\": ["
+
+	for master in "${@}"; do
+		json="${json}\"${master}.\","
+	done
+	json="${json::-1}],"
+fi
+
+json="${json::-1}
+}"
+
+# Does it already exist?
+new=0
+if ! [ "$(curl -s -o /dev/null -w "%{http_code}" -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")" = 200 ]; then
+	# Add nameservers if needed
+	if [ "${kind}" = 'Master' ] || [ "${kind}" = 'Native' ]; then
+		json="${json::-2},\"nameservers\": ["
+		for ns in "${@}"; do
+			json="${json}\"${ns}.\","
+		done
+		json="${json::-1}]}"
+	fi
+	# Create zone
+	curl -s -o /dev/null -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones"
+	new=1
+fi
+
+# Already exists - do we need to modify it?
+if [ "${new}" = 0 ]; then
+	# Fetch data
+	eval "$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq -r '@sh "currentKind=\(.kind) currentSoaEdit=\(.soa_edit) currentSoaEditApi=\(.soa_edit_api)"')"
+
+	# Change data if needed
+	if [ "${kind}" != "${currentKind}" ] || [ "${soaEdit}" != "${currentSoaEdit}" ] || [ "${soaEditApi}" != "${currentSoaEditApi}" ]; then
+		curl -s -o /dev/null -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
+		echo CHANGED
+	fi
+fi
+
+# Verify DNSSEC is in the correct state
+if [ "$(pdnsutil show-zone "${zonename}" | grep -c '^Zone is not actively secured$')" = 1 ]; then
+	# Currently not secured
+	if [ "${dnssec:1}" = 'rue' ]; then
+		pdnsutil secure-zone "${zonename}" > /dev/null
+		echo CHANGED
+	fi
+else
+	# Currently secure
+	if [ "${dnssec:1}" = 'alse' ]; then
+		pdnsutil disable-dnssec "${zonename}" > /dev/null
+		echo CHANGED
+	fi
+fi
+
+# Configure NSEC3
+if [ "${dnssec:1}" = 'rue' ]; then
+	line="$(pdnsutil show-zone "${zonename}" | grep '^Zone has NARROW hashed NSEC3 semantics, configuration: ' || :)"
+	if [ "$(echo "${line}" | wc -l )" = 0 ]; then
+		# NSEC 3 is currently disabled
+		pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}" narrow
+		pdnsutil rectify-zone "${zonename}"
+		echo CHANGED
+	else
+		if [ "$(echo "${line}" | cut -d' ' -f 8)" != 1 ] || [ "$(echo "${line}" | cut -d' ' -f 9)" != 0 ] || [ "$(echo "${line}" | cut -d' ' -f 10)" != "${nsec3Iterations}" ] || [ "$(echo "${line}" | cut -d' ' -f 11)" != "${nsec3Salt}" ]; then
+			# Correct NSEC 3 parameters
+			pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}" narrow
+			pdnsutil rectify-zone "${zonename}"
+			echo CHANGED
+		fi
+	fi
+fi
