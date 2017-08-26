@@ -12,7 +12,7 @@ zonename="${3}"
 # specifying the JSON on the command line.
 expected="${rrset:-}"
 
-# Ensure every record has a "disabled" field
+# Add a "disabled" field if there is none yet
 expected="$(echo "${expected}" | jq  '. + { records: [(.records[] | .disabled = if has("disabled") then .disabled else false end )] }')"
 
 # See what name and type we expect
