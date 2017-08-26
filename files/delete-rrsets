@@ -12,8 +12,6 @@ zonename="${3}"
 # specifying the JSON on the command line.
 rrsets="${rrsets:-}"
 
-rrsets='[{"records": [{"content": "1.2.3.4", "disabled": false, "set-ptr": false}, {"content": "5.6.7.8"}], "type": "A", "name": "efcloud.co", "ttl": 500}, {"records": [{"content": "4.5.6.7"}], "type": "A", "name": "*.efcloud.co", "ttl": 4000}]'
-
 # This generates CSV in style [rrsetName],[rrsetType]
 expected="$(echo "${rrsets}" | jq -r '.[] | [ .name + ".", .type ] | join(",")' | sort)"
 current="$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq -r '.rrsets[] | [ .name, .type ] | join(",")' | sort)"
