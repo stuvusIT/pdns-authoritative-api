@@ -52,7 +52,6 @@
     cmd: >
       /usr/local/bin/pdns-auth-api-delete-rrsets "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
       "{{ item.name }}"
-
   environment:
     rrsets: "{{ item.rrsets | to_json }}"
     apikey: "{{ pdns_auth_api_key }}"
