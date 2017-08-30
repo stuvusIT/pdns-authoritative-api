@@ -1,0 +1,56 @@
+#!/bin/bash -e
+
+set -o nounset
+umask 177
+
+# Parameters
+url="${1}/api/v1/servers/${2}"
+# $2 is the server
+apikey="${apikey:-}"
+zonename="${3}"
+# The rrset is passed via an env variable because the quotes are mangled when
+# specifying the JSON on the command line.
+expected="${expected:-}"
+
+# Parse zone metadata
+eval "$(echo "${expected}" | jq -r '@sh "defaultTtl=\(.defaultTTL)"')"
+
+# Filter out the records
+records="$(echo "${expected}" | jq '.records')"
+# First step of preparing the RRsets.
+# This groups the records into RRsets.
+# The TTL is at the wrong location, but step 2 fixes that
+# What is left to be done:
+# - Wrap everything into "rrsets"
+# - Add changetype if needed
+records="$(echo "${records}" | jq '[. | to_entries[] | (.value | to_entries[]) as $v | { "name": .key, "type": $v.key, "records": [ $v.value[] | if .c != null then { "content": .c, "disabled": false } + if .r != null then { "set-ptr": .r } else {} end else { "ttl": .t } end ] }]')"
+# Second step moves TTL to correct location and assigns default TTL if needed
+records="$(echo "${records}" | jq --arg defaultTtl "${defaultTtl}" '[.[] | .ttl = (.records | map(select(has("ttl")).ttl))[0] ][] | if .ttl == null then .ttl = ($defaultTtl | tonumber) else .ttl = .ttl end | del(.records[] | select(has("ttl"))) | .name = .name + "."')"
+# Remove PTR and wrap into "rrsets" for comparing with the API
+recordsWithoutPtr="$(echo "${records}" | jq 'del(.records[]."set-ptr")')"
+recordsWithoutPtr="$(echo "${recordsWithoutPtr}" | jq -s '.')"
+
+# See how it currently looks (removing comments)
+current="$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq '[ .rrsets[] | del(.comments) ]')"
+
+# This compares two JSON objects
+# Taken from: https://stackoverflow.com/a/31933234/1432545
+compare="$(jq --argfile a <(echo "${recordsWithoutPtr}") --argfile b <(echo "${current}") -n 'def post_recurse(f): def r: (f | select(. != null) | r), .; r; def post_recurse: post_recurse(.[]?); ($a | (post_recurse | arrays) |= sort) as $a | ($b | (post_recurse | arrays) |= sort) as $b | $a == $b')"
+
+if [ "${compare}" = true ]; then
+	# This echo is not really needed, but helps troubleshooting problems
+	echo EXITING
+	exit
+fi
+
+# If we made it here, replace the records
+
+# Add the changetype
+recordsWithChangetype="$(echo "${records}" | jq '. + { changetype: "REPLACE" }' | jq -s '')"
+
+# Go...?
+curl -s -X PATCH -o /dev/null -w '%{http_code}' \
+	--data "{ \"rrsets\": ${recordsWithChangetype} }" \
+	-H "X-API-Key: ${apikey}" "${url}/zones/${zonename}."
+
+echo CHANGED
