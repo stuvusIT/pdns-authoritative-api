@@ -28,7 +28,7 @@ Arch Linux or Ubuntu
 | `soaEdit`            | `DEFAULT`          | SOA-EDIT value for this zone                                                                                                                        |
 | `soaEditApi`         |                    | SOA-EDIT value when using the API. Defaults to `soaEdit`                                                                                            |
 | `dnssec`             | `false`            | Enable DNSSEC and NSEC3 for this zone                                                                                                               |
-| `defaultTtl`         | :heavy_check_mark: | TTL for all RRsets with no TTL for a RRset is set explicitly                                                                                        |
+| `defaultTTL`         | :heavy_check_mark: | TTL for all RRsets with no TTL explicitly set                                                                                                       |
 | `nsec3Iterations`    | `5`                | Amount of NSEC3 iterations                                                                                                                          |
 | `nsec3Salt`          | `dada`             | Salt to use when hashing for NSEC3                                                                                                                  |
 | `defaultNameservers` | :heavy_check_mark: | List of NS records (for `Master` and `Native` zones), or list of masters (for `Slave` zones). This is only used when creating the zone from scratch |
