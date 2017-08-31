@@ -28,7 +28,7 @@ Arch Linux or Ubuntu
 | `soaEdit`            | `DEFAULT`          | SOA-EDIT value for this zone                                                                                                                        |
 | `soaEditApi`         |                    | SOA-EDIT value when using the API. Defaults to `soaEdit`                                                                                            |
 | `dnssec`             | `false`            | Enable DNSSEC and NSEC3 for this zone                                                                                                               |
-| `defaultTtl`         | :heavy_check_mark: | TTL for all RRsets with no TTL given                                                                                                                |
+| `defaultTtl`         | :heavy_check_mark: | TTL for all RRsets with no TTL for a RRset is set explicitly                                                                                        |
 | `nsec3Iterations`    | `5`                | Amount of NSEC3 iterations                                                                                                                          |
 | `nsec3Salt`          | `dada`             | Salt to use when hashing for NSEC3                                                                                                                  |
 | `defaultNameservers` | :heavy_check_mark: | List of NS records (for `Master` and `Native` zones), or list of masters (for `Slave` zones). This is only used when creating the zone from scratch |
@@ -38,7 +38,7 @@ Arch Linux or Ubuntu
 ### Records
 
 This role automatically sorts records of the same name and type into RRsets.
-Each record can either set a content (`c`) **or** can set a TTL which goes for the entire RRset (`t`).
+Each record can either set a content (`c`) **or** can set a TTL which applies for the entire RRset (`t`).
 
 Records are grouped into types which are grouped into names.
 See the example below.
@@ -46,11 +46,11 @@ Unknown RRsets are removed.
 
 ### Contents
 
-| Name | Default/Required   | Description                                             |
-|------|:------------------:|---------------------------------------------------------|
-| `c`  | :heavy_check_mark: | Content of this record. Must be omitted when `t` is set |
-| `t`  | :heavy_check_mark: | TTL of this RRset. Must be omitted when `c` is set      |
-| `r`  | :heavy_check_mark: | Also set the PTR record in the reverse zone             |
+| Name | Default/Required     | Description                                             |
+|------|:--------------------:|---------------------------------------------------------|
+| `c`  | (:heavy_check_mark:) | Content of this record. Must be omitted when `t` is set |
+| `t`  | (:heavy_check_mark:) | TTL of this RRset. Must be omitted when `c` is set      |
+| `r`  |                      | Also set the PTR record in the reverse zone             |
 
 ## Example Playbook
 
