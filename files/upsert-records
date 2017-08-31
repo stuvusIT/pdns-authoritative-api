@@ -49,8 +49,10 @@ fi
 recordsWithChangetype="$(echo "${records}" | jq '. + { changetype: "REPLACE" }' | jq -s '')"
 
 # Go...?
-curl -s -X PATCH -o /dev/null -w '%{http_code}' \
+result="$(curl -s -X PATCH -o /dev/null -w '%{http_code}' \
 	--data "{ \"rrsets\": ${recordsWithChangetype} }" \
-	-H "X-API-Key: ${apikey}" "${url}/zones/${zonename}."
+	-H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")"
+
+[ "${result}" = 204 ] || exit "${result}"
 
 echo CHANGED
