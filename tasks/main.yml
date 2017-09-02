@@ -43,6 +43,8 @@
 
 - include: single-zone.yml
   with_items: "{{ pdns_auth_api_zones | mandatory }}"
+  loop_control:
+    loop_var: zone
 
 - name: Delete unknown zones
   command:

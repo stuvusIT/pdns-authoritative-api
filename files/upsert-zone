@@ -16,7 +16,7 @@ nsec3Iterations="${8}"
 nsec3Salt="${9}"
 shift 9
 
-if [ "${#}" = 0 ]; then
+if [ "${kind}" = Slave ] && [ "${#}" = 0 ]; then
 	echo "Missing nameservers"
 	exit 1
 fi
@@ -46,11 +46,7 @@ new=0
 if ! [ "$(curl -s -o /dev/null -w "%{http_code}" -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")" = 200 ]; then
 	# Add nameservers if needed
 	if [ "${kind}" = 'Master' ] || [ "${kind}" = 'Native' ]; then
-		json="${json::-2},\"nameservers\": ["
-		for ns in "${@}"; do
-			json="${json}\"${ns}.\","
-		done
-		json="${json::-1}]}"
+		json="${json::-2},\"nameservers\": [ \"dummy.ns.\" ]}"
 	fi
 	# Create zone
 	curl -s -o /dev/null -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones"
@@ -86,16 +82,16 @@ fi
 
 # Configure NSEC3
 if [ "${dnssec:1}" = 'rue' ]; then
-	line="$(pdnsutil show-zone "${zonename}" | grep '^Zone has NARROW hashed NSEC3 semantics, configuration: ' || :)"
+	line="$(pdnsutil show-zone "${zonename}" | grep '^Zone has hashed NSEC3 semantics, configuration: ' || :)"
 	if [ "$(echo "${line}" | wc -l )" = 0 ]; then
 		# NSEC 3 is currently disabled
-		pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}" narrow
+		pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}"
 		pdnsutil rectify-zone "${zonename}"
 		echo CHANGED
 	else
 		if [ "$(echo "${line}" | cut -d' ' -f 8)" != 1 ] || [ "$(echo "${line}" | cut -d' ' -f 9)" != 0 ] || [ "$(echo "${line}" | cut -d' ' -f 10)" != "${nsec3Iterations}" ] || [ "$(echo "${line}" | cut -d' ' -f 11)" != "${nsec3Salt}" ]; then
 			# Correct NSEC 3 parameters
-			pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}" narrow
+			pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}"
 			pdnsutil rectify-zone "${zonename}"
 			echo CHANGED
 		fi

@@ -21,19 +21,19 @@ Arch Linux or Ubuntu
 
 ### DNS Zones
 
-| Name                 | Default/Required   | Description                                                                                                                                         |
-|----------------------|:------------------:|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`               | :heavy_check_mark: | Name of this zone                                                                                                                                   |
-| `kind`               | `Master`           | Type of this zone (`Master`, `Slave`, or `Native`)                                                                                                  |
-| `soaEdit`            | `DEFAULT`          | SOA-EDIT value for this zone                                                                                                                        |
-| `soaEditApi`         |                    | SOA-EDIT value when using the API. Defaults to `soaEdit`                                                                                            |
-| `dnssec`             | `false`            | Enable DNSSEC and NSEC3 for this zone                                                                                                               |
-| `defaultTTL`         | :heavy_check_mark: | TTL for all RRsets with no TTL explicitly set                                                                                                       |
-| `nsec3Iterations`    | `5`                | Amount of NSEC3 iterations                                                                                                                          |
-| `nsec3Salt`          | `dada`             | Salt to use when hashing for NSEC3                                                                                                                  |
-| `defaultNameservers` | :heavy_check_mark: | List of NS records (for `Master` and `Native` zones), or list of masters (for `Slave` zones). This is only used when creating the zone from scratch |
-| `metadata`           |                    | Dict with the domain metadata. Items that are present in the database, but not here are removed                                                     |
-| `records`            | :heavy_check_mark: | List with all records in this zone (see below)                                                                                                      |
+| Name              | Default/Required     | Description                                                                                                                                           |
+|-------------------|:--------------------:|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`            | :heavy_check_mark:   | Name of this zone                                                                                                                                     |
+| `kind`            | `Master`             | Type of this zone (`Master`, `Slave`, or `Native`)                                                                                                    |
+| `soaEdit`         | :heavy_check_mark:   | SOA-EDIT value for this zone                                                                                                                          |
+| `soaEditApi`      |                      | SOA-EDIT value when using the API. Defaults to `soaEdit`                                                                                              |
+| `dnssec`          | `false`              | Enable DNSSEC and NSEC3 for this zone                                                                                                                 |
+| `defaultTTL`      | :heavy_check_mark:   | TTL for all RRsets with no TTL explicitly set                                                                                                         |
+| `nsec3Iterations` | `5`                  | Amount of NSEC3 iterations                                                                                                                            |
+| `nsec3Salt`       | `dada`               | Salt to use when hashing for NSEC3                                                                                                                    |
+| `masters`         | (:heavy_check_mark:) | List of master IPs (for `Slave` zones). This is not mandatory when creating a `Master` or `Native` zone                                               |
+| `metadata`        |                      | Dict with the domain metadata. Items that are present in the database, but not here are removed. Please do not set `SOA-EDIT` and `SOA-EDIT-API` here |
+| `records`         | :heavy_check_mark:   | List with all records in this zone (see below)                                                                                                        |
 
 ### Records
 

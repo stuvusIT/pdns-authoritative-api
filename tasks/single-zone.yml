@@ -1,50 +1,47 @@
 ---
-- name: Configure {{ item.name }} zone
+- name: Configure {{ zone.name }} zone
   command:
     cmd: >
-      /usr/local/bin/pdns-auth-api-upsert-zone "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-      "{{ item.name }}" "{{ item.kind | default('Master') }}" "{{ item.soaEdit | default('DEFAULT') }}" "{{ item.soaEditApi | default('') }}"
-      "{{ item.dnssec | default(false) }}" "{{ item.nsec3Iterations | default(5) }}" "{{ item.nsec3Salt | default('dada') }}" {{ item.defaultNameservers }}
+      /usr/local/bin/pdns-auth-api-upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
+      "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
+      "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" {{ zone.masters | default([]) }}
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
 
-- name: Configure domain metadata for {{ item.name }}
+- name: Configure domain metadata for {{ zone.name }}
   command:
     cmd: >
-      /usr/local/bin/pdns-auth-api-update-domain-metadata "{{ item.name }}"
+      /usr/local/bin/pdns-auth-api-update-domain-metadata "{{ zone.name }}"
       "{{ meta.key }}" {% if meta.value is iterable and meta.value is not string %}"{{ meta.value | join('" "') }}"{% else %}"{{ meta.value }}"{% endif %}
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
-  with_dict: "{{ item.metadata }}"
+  with_dict: "{{ zone.metadata }}"
   loop_control:
     loop_var: meta
-  when: item.metadata is defined
+  when: zone.metadata is defined
 
-- name: Remove unknown metadata from {{ item.name }}
+- name: Remove unknown metadata from {{ zone.name }}
   command:
     cmd: >
-      /usr/local/bin/pdns-auth-api-delete-domain-metadata "{{ item.name }}"
-      "{{ meta.key }}"
+      /usr/local/bin/pdns-auth-api-delete-domain-metadata "{{ zone.name }}"
+      "{{ zone.metadata | default({}) | join('" "') }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
-  with_dict: "{{ item.metadata | default({'SOA-EDIT': ''}) }}"
-  loop_control:
-    loop_var: meta
 
-- name: Upsert records
+- name: Upsert records in {{ zone.name }}
   command:
     cmd: >
       /usr/local/bin/pdns-auth-api-upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-      "{{ item.name }}"
+      "{{ zone.name }}"
   environment:
-    expected: "{{ item | to_json }}"
+    expected: "{{ zone | to_json }}"
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
   changed_when: "'CHANGED' in records_out.stdout | default('')"
 
 # We have to manually rectify the zone, because it's not implemented in the API yet
 - name: Rectify zone
-  command: pdnsutil rectify-zone "{{ item.name }}"
+  command: pdnsutil rectify-zone "{{ zone.name }}"
   when: records_out.changed
