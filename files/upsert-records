@@ -14,6 +14,14 @@ expected="${expected:-}"
 
 # Parse zone metadata
 eval "$(echo "${expected}" | jq -r '@sh "defaultTtl=\(.defaultTTL)"')"
+eval "$(echo "${expected}" | jq -r '@sh "expectedSoa=\(.records | .[] | to_entries | .[] | select(.key == "SOA").value | .[] | select(.c != null).c)"')"
+
+if [ -z "${expectedSoa}" ]; then
+	echo 'No SOA record found' > /dev/stderr
+	exit 1
+fi
+
+expectedSerial="$(echo "${expectedSoa}" | cut -d ' ' -f3)"
 
 # Filter out the records
 records="$(echo "${expected}" | jq '.records')"
@@ -26,13 +34,27 @@ records="$(echo "${expected}" | jq '.records')"
 records="$(echo "${records}" | jq '[. | to_entries[] | (.value | to_entries[]) as $v | { "name": .key, "type": $v.key, "records": [ $v.value[] | if .c != null then { "content": .c, "disabled": false } + if .r != null then { "set-ptr": .r } else {} end else { "ttl": .t } end ] }]')"
 # Second step moves TTL to correct location and assigns default TTL if needed
 records="$(echo "${records}" | jq --arg defaultTtl "${defaultTtl}" '[.[] | .ttl = (.records | map(select(has("ttl")).ttl))[0] ][] | if .ttl == null then .ttl = ($defaultTtl | tonumber) else .ttl = .ttl end | del(.records[] | select(has("ttl"))) | .name = .name + "."')"
-# Remove PTR, sort the records, and wrap them into "rrsets" for comparing with the API
-recordsWithoutPtr="$(echo "${records}" | jq -S 'del(.records[]."set-ptr")')"
-recordsWithoutPtr="$(echo "${recordsWithoutPtr}" | jq -s '.' | jq '. |= sort_by(.name)' | jq '. |= sort_by(.type)' | jq -S '.[].records |= sort_by(.content)')"
 
 # See how it currently looks (removing comments and sorting)
 current="$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq -S '[ .rrsets[] | del(.comments) ]')"
 current="$(echo "${current}" | jq '. |= sort_by(.name)' | jq '. |= sort_by(.type)' | jq -S '.[].records |= sort_by(.content)')"
+
+# Get current SOA
+if [ "${expectedSerial}" = AUTO ]; then
+	eval "$(echo "${current}" | jq -r '@sh "currentSoa=\(.[] | select(.type == "SOA").records | .[].content)"')"
+	currentSerial="$(echo "${currentSoa}" | cut -d ' ' -f3)"
+	if [ -z "${currentSerial}" ] || [ "${currentSerial}" = null ]; then
+		currentSerial=0
+	fi
+	# Insert current serial back to expected SOA
+	newSoa="$(echo "${expectedSoa}" | cut -d' ' -f1-2) ${currentSerial} $(echo "${expectedSoa}" | cut -d ' ' -f4-)"
+	# Insert the new SOA back into what we expect
+	records="$(echo "${records}" | sed "s/${expectedSoa}/${newSoa}/g")"
+fi
+
+# Remove PTR, sort the records, and wrap them into "rrsets" for comparing with the API
+recordsWithoutPtr="$(echo "${records}" | jq -S 'del(.records[]."set-ptr")')"
+recordsWithoutPtr="$(echo "${recordsWithoutPtr}" | jq -s '.' | jq '. |= sort_by(.name)' | jq '. |= sort_by(.type)' | jq -S '.[].records |= sort_by(.content)')"
 
 # This compares two JSON objects
 # Taken from: https://stackoverflow.com/a/31933234/1432545
