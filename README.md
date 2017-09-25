@@ -26,7 +26,7 @@ Arch Linux or Ubuntu
 | `name`            | :heavy_check_mark:   | Name of this zone                                                                                                                                     |
 | `kind`            | `Master`             | Type of this zone (`Master`, `Slave`, or `Native`)                                                                                                    |
 | `soaEdit`         | :heavy_check_mark:   | SOA-EDIT value for this zone                                                                                                                          |
-| `soaEditApi`      |                      | SOA-EDIT value when using the API. Defaults to `soaEdit`                                                                                              |
+| `soaEditApi`      |                      | SOA-EDIT-API value. Is automatically initialized by PowerDNS with `DEFAULT`                                                                           |
 | `dnssec`          | `false`              | Enable DNSSEC and NSEC3 for this zone                                                                                                                 |
 | `defaultTTL`      | :heavy_check_mark:   | TTL for all RRsets with no TTL explicitly set                                                                                                         |
 | `nsec3Iterations` | `5`                  | Amount of NSEC3 iterations                                                                                                                            |
