@@ -89,7 +89,7 @@ if [ "${dnssec:1}" = 'rue' ]; then
 		pdnsutil rectify-zone "${zonename}"
 		echo CHANGED
 	else
-		if [ "$(echo "${line}" | cut -d' ' -f 8)" != 1 ] || [ "$(echo "${line}" | cut -d' ' -f 9)" != 0 ] || [ "$(echo "${line}" | cut -d' ' -f 10)" != "${nsec3Iterations}" ] || [ "$(echo "${line}" | cut -d' ' -f 11)" != "${nsec3Salt}" ]; then
+		if [ "$(echo "${line}" | cut -d' ' -f 7)" != 1 ] || [ "$(echo "${line}" | cut -d' ' -f 8)" != 0 ] || [ "$(echo "${line}" | cut -d' ' -f 9)" != "${nsec3Iterations}" ] || [ "$(echo "${line}" | cut -d' ' -f 10)" != "${nsec3Salt}" ]; then
 			# Correct NSEC 3 parameters
 			pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}"
 			pdnsutil rectify-zone "${zonename}"
