@@ -41,7 +41,7 @@
     - delete-domain-metadata
     - upsert-records
 
-- include: single-zone.yml
+- include_tasks: single-zone.yml
   with_items: "{{ pdns_auth_api_zones | mandatory }}"
   loop_control:
     loop_var: zone
