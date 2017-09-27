@@ -44,6 +44,9 @@ Records are grouped into types which are grouped into names.
 See the example below.
 Unknown RRsets are removed.
 
+If a SOA record has `AUTO` as its serial, the current value from the current zone is used.
+This is helpful when setting `soaEditApi` to automatically increment the serial.
+
 ### Contents
 
 | Name | Default/Required     | Description                                             |
@@ -74,7 +77,7 @@ Unknown RRsets are removed.
          records:
            example.com:
              SOA:
-               - c: ns1.example.com admin.example.com 0 3600 1800 604800 600
+               - c: ns1.example.com admin.example.com AUTO 3600 1800 604800 600
              NS:
                - c: ns1.example.com.
                - c: ns2.example.com.
