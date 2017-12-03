@@ -33,7 +33,7 @@ if [ "${kind}" = 'Slave' ]; then
 		\"masters\": ["
 
 	for master in "${@}"; do
-		json="${json}\"${master}.\","
+		json="${json}\"${master}\","
 	done
 	json="${json::-1}],"
 fi
@@ -43,13 +43,13 @@ json="${json::-1}
 
 # Does it already exist?
 new=0
-if ! [ "$(curl -s -o /dev/null -w "%{http_code}" -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")" = 200 ]; then
+if ! [ "$(curl -s -o /dev/stderr -w "%{http_code}" -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}.")" = 200 ]; then
 	# Add nameservers if needed
 	if [ "${kind}" = 'Master' ] || [ "${kind}" = 'Native' ]; then
 		json="${json::-2},\"nameservers\": [ \"dummy.ns.\" ]}"
 	fi
 	# Create zone
-	curl -s -o /dev/null -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones"
+	curl -s -o /dev/stderr -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones"
 	new=1
 fi
 
@@ -60,7 +60,7 @@ if [ "${new}" = 0 ]; then
 
 	# Change data if needed
 	if [ "${kind}" != "${currentKind}" ] || [ "${soaEdit}" != "${currentSoaEdit}" ] || [ "${soaEditApi}" != "${currentSoaEditApi}" ]; then
-		curl -s -o /dev/null -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
+		curl -s -o /dev/stderr -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
 		echo CHANGED
 	fi
 fi
@@ -69,13 +69,13 @@ fi
 if [ "$(pdnsutil show-zone "${zonename}" | grep -c '^Zone is not actively secured$')" = 1 ]; then
 	# Currently not secured
 	if [ "${dnssec:1}" = 'rue' ]; then
-		pdnsutil secure-zone "${zonename}" > /dev/null
+		pdnsutil secure-zone "${zonename}" > /dev/stderr
 		echo CHANGED
 	fi
 else
 	# Currently secure
 	if [ "${dnssec:1}" = 'alse' ]; then
-		pdnsutil disable-dnssec "${zonename}" > /dev/null
+		pdnsutil disable-dnssec "${zonename}" > /dev/stderr
 		echo CHANGED
 	fi
 fi

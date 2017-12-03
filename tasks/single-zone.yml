@@ -4,7 +4,7 @@
     cmd: >
       /usr/local/bin/pdns-auth-api-upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
       "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
-      "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" {{ zone.masters | default([]) }}
+      "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" "{{ zone.masters | default([]) | join('" "') }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out
@@ -35,11 +35,12 @@
     cmd: >
       /usr/local/bin/pdns-auth-api-upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
       "{{ zone.name }}"
+    stdin: "{{ zone | to_json }}"
   environment:
-    expected: "{{ zone | to_json }}"
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
   changed_when: "'CHANGED' in records_out.stdout | default('')"
+  when: "{{ zone.kind | default('Master') != 'Slave' }}"
 
 # We have to manually rectify the zone, because it's not implemented in the API yet
 - name: Rectify zone
