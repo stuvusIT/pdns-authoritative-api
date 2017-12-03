@@ -18,7 +18,7 @@ while IFS='' read -r dom; do
 		fi
 		if [ "${ok}" = 0 ]; then
 			changed=1
-			curl -s -X DELETE -o /dev/null -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
+			curl -s -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
 		fi
 	done
 done < <(curl -s -H "X-API-Key: ${apikey}" "${url}/zones" | jq '.[] | .name')

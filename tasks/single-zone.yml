@@ -35,8 +35,8 @@
     cmd: >
       /usr/local/bin/pdns-auth-api-upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
       "{{ zone.name }}"
+    stdin: "{{ zone | to_json }}"
   environment:
-    expected: "{{ zone | to_json }}"
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
   changed_when: "'CHANGED' in records_out.stdout | default('')"
