@@ -33,7 +33,7 @@ if [ "${kind}" = 'Slave' ]; then
 		\"masters\": ["
 
 	for master in "${@}"; do
-		json="${json}\"${master}.\","
+		json="${json}\"${master}\","
 	done
 	json="${json::-1}],"
 fi
