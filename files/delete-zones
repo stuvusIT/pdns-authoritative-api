@@ -11,16 +11,16 @@ shift 2
 changed=0
 while IFS='' read -r dom; do
 	ok=0
-	for param in "${@}"; do
+	for param in ${@}; do
 		if [ "${dom:1:-2}" = "${param}" ]; then
 			ok=1
 			break
 		fi
-		if [ "${ok}" = 0 ]; then
-			changed=1
-			curl -s -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
-		fi
 	done
+	if [ "${ok}" = 0 ]; then
+		changed=1
+		curl -s -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
+	fi
 done < <(curl -s -H "X-API-Key: ${apikey}" "${url}/zones" | jq '.[] | .name')
 
 if [ "${changed}" = 1 ]; then
