@@ -65,6 +65,10 @@ if [ "${new}" = 0 ]; then
 	fi
 fi
 
+if [ "${kind}" = 'Slave' ]; then
+	exit 0
+fi
+
 # Verify DNSSEC is in the correct state
 if [ "$(pdnsutil show-zone "${zonename}" | grep -c '^Zone is not actively secured$')" = 1 ]; then
 	# Currently not secured
