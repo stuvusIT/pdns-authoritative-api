@@ -79,7 +79,7 @@ while IFS= read -r line; do
 	toDel="${toDel}, { \"name\": \"${name}\", \"type\": \"${type}\", \"changetype\": \"DELETE\" }"
 	# Those two jq calls are the same.
 	# Each one maps the records to a [name],[type] CSV
-done < <(comm -3 <(echo "${current}" | jq -r '[.[]] | map([.name, .type]) | .[] | join(",")' | sort) <(echo "${recordsWithoutPtr}" | jq -r '[.[]] | map([.name, .type]) | .[] | join(",")' | sort))
+done < <(comm -23 <(echo "${current}" | jq -r '[.[]] | map([.name, .type]) | .[] | join(",")' | sort) <(echo "${recordsWithoutPtr}" | jq -r '[.[]] | map([.name, .type]) | .[] | join(",")' | sort))
 if ! [ -z "${toDel}" ]; then
 	recordsWithChangetype="${recordsWithChangetype::-2}${toDel}]"
 fi
