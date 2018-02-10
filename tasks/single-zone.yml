@@ -1,5 +1,5 @@
 ---
-- name: Configure {{ zone.name }} zone
+- name: Configure {{ zone.name }}
   script: >
     scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
     "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
@@ -9,7 +9,7 @@
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
 
-- name: Configure domain metadata for {{ zone.name }}
+- name: Configure metadata for {{ zone.name }}
   script: >
     scripts/update-domain-metadata "{{ zone.name }}"
     "{{ meta.key }}" {% if meta.value is iterable and meta.value is not string %}"{{ meta.value | join('" "') }}"{% else %}"{{ meta.value }}"{% endif %}
@@ -27,7 +27,7 @@
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
 
-- name: Create temporary file {{ zone.name }}
+- name: Create temporary file for {{ zone.name }}
   tempfile:
     suffix: json
   register: tempfile
@@ -58,6 +58,6 @@
   changed_when: false
 
 # We have to manually rectify the zone, because it's not implemented in the API yet
-- name: Rectify zone
+- name: Rectify {{ zone.name }}
   command: pdnsutil rectify-zone "{{ zone.name }}"
   when: records_out.changed
