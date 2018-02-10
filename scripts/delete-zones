@@ -1,5 +1,7 @@
-#!/bin/bash -e
+#!/bin/bash
 
+set -e
+set -o pipefail
 set -o nounset
 
 # Parameters

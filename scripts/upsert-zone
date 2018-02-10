@@ -1,6 +1,8 @@
-#!/bin/bash -e
+#!/bin/bash
 
+set -e
 set -o nounset
+set -o pipefail
 umask 177
 
 # Parameters

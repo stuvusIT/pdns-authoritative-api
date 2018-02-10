@@ -27,30 +27,15 @@
     - jq
   when: ansible_pkg_mgr == "pacman"
 
-- name: Copy helper scripts
-  copy:
-    src: "{{ item }}"
-    dest: "/usr/local/bin/pdns-auth-api-{{ item }}"
-    owner: root
-    group: root
-    mode: 0700
-  with_items:
-    - upsert-zone
-    - delete-zones
-    - update-domain-metadata
-    - delete-domain-metadata
-    - upsert-records
-
 - include_tasks: single-zone.yml
   with_items: "{{ pdns_auth_api_zones | mandatory }}"
   loop_control:
     loop_var: zone
 
 - name: Delete unknown zones
-  command:
-    cmd: >
-      /usr/local/bin/pdns-auth-api-delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-      "{{ pdns_auth_api_zones | map(attribute='name') | list | join(' ')}}"
+  script: >
+    scripts/delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
+    "{{ pdns_auth_api_zones | map(attribute='name') | list | join(' ') }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out

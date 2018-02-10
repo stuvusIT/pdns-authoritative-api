@@ -1,20 +1,18 @@
 ---
 - name: Configure {{ zone.name }} zone
-  command:
-    cmd: >
-      /usr/local/bin/pdns-auth-api-upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
-      "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
-      "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" "{{ zone.masters | default([]) | join('" "') }}"
+  script: >
+    scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
+    "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
+    "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" "{{ zone.masters | default([]) | join('" "') }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
 
 - name: Configure domain metadata for {{ zone.name }}
-  command:
-    cmd: >
-      /usr/local/bin/pdns-auth-api-update-domain-metadata "{{ zone.name }}"
-      "{{ meta.key }}" {% if meta.value is iterable and meta.value is not string %}"{{ meta.value | join('" "') }}"{% else %}"{{ meta.value }}"{% endif %}
+  script: >
+    scripts/update-domain-metadata "{{ zone.name }}"
+    "{{ meta.key }}" {% if meta.value is iterable and meta.value is not string %}"{{ meta.value | join('" "') }}"{% else %}"{{ meta.value }}"{% endif %}
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
   with_dict: "{{ zone.metadata }}"
@@ -23,24 +21,41 @@
   when: zone.metadata is defined
 
 - name: Remove unknown metadata from {{ zone.name }}
-  command:
-    cmd: >
-      /usr/local/bin/pdns-auth-api-delete-domain-metadata "{{ zone.name }}"
-      "{{ zone.metadata | default({}) | join('" "') }}"
+  script: >
+    scripts/delete-domain-metadata "{{ zone.name }}"
+    "{{ zone.metadata | default({}) | join('" "') }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
+
+- name: Create temporary file {{ zone.name }}
+  tempfile:
+    suffix: json
+  register: tempfile
+  changed_when: false
+
+- name: Write {{ zone.name }} to temporary file
+  copy:
+    content: "{{ zone | to_json }}"
+    dest: "{{ tempfile.path }}"
+  changed_when: false
 
 - name: Upsert records in {{ zone.name }}
   command:
     cmd: >
       /usr/local/bin/pdns-auth-api-upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-      "{{ zone.name }}"
+      "{{ zone.name }}" "{{ tempfile.path }}"
     stdin: "{{ zone | to_json }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
   changed_when: "'CHANGED' in records_out.stdout | default('')"
   when: "{{ zone.kind | default('Master') != 'Slave' }}"
+
+- name: Remove temporary file
+  file:
+    path: tempfile.path
+    state: absent
+  changed_when: false
 
 # We have to manually rectify the zone, because it's not implemented in the API yet
 - name: Rectify zone

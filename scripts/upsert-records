@@ -1,5 +1,7 @@
-#!/bin/bash -e
+#!/bin/bash
 
+set -e
+set -o pipefail
 set -o nounset
 umask 177
 
@@ -8,9 +10,9 @@ url="${1}/api/v1/servers/${2}"
 # $2 is the server
 apikey="${apikey:-}"
 zonename="${3}"
-# The rrset is passed via stdin because the quotes are mangled when
+# The rrset is passed via file because the quotes are mangled when
 # specifying the JSON on the command line.
-expected="$(cat)"
+expected="$(< "${4}")"
 
 # Parse zone metadata
 eval "$(echo "${expected}" | jq -r '@sh "defaultTtl=\(.defaultTTL)"')"
