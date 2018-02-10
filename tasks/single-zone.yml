@@ -49,7 +49,7 @@
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
   changed_when: "'CHANGED' in records_out.stdout | default('')"
-  when: "{{ zone.kind | default('Master') != 'Slave' }}"
+  when: zone.kind | default('Master') != 'Slave'
 
 - name: Remove temporary file
   file:
