@@ -2,7 +2,7 @@
 - name: Configure {{ zone.name }}
   script: >
     scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
-    "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | mandatory }}" "{{ zone.soaEditApi | default('') }}"
+    "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | default('') }}" "{{ zone.soaEditApi | default('') }}"
     "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" "{{ zone.masters | default([]) | join('" "') }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
@@ -32,12 +32,14 @@
     suffix: json
   register: tempfile
   changed_when: false
+  when: zone.kind | default('Master') != 'Slave'
 
 - name: Write {{ zone.name }} to temporary file
   copy:
     content: "{{ zone | to_json }}"
     dest: "{{ tempfile.path }}"
   changed_when: false
+  when: zone.kind | default('Master') != 'Slave'
 
 - name: Upsert records in {{ zone.name }}
   command:
@@ -56,8 +58,9 @@
     path: tempfile.path
     state: absent
   changed_when: false
+  when: zone.kind | default('Master') != 'Slave'
 
 # We have to manually rectify the zone, because it's not implemented in the API yet
 - name: Rectify {{ zone.name }}
   command: pdnsutil rectify-zone "{{ zone.name }}"
-  when: records_out.changed
+  when: zone.kind | default('Master') != 'Slave' and records_out.changed
