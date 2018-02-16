@@ -1,6 +1,8 @@
-#!/bin/bash -e
+#!/bin/bash
 
+set -e
 set -o nounset
+set -o pipefail
 umask 177
 
 # Parameters
@@ -24,9 +26,7 @@ fi
 # Initial JSON
 json="{
 	\"name\": \"${zonename}.\",
-	\"kind\": \"${kind}\",
-	\"soa_edit\": \"${soaEdit}\",
-	\"soa_edit_api\": \"${soaEditApi}\","
+	\"kind\": \"${kind}\","
 
 if [ "${kind}" = 'Slave' ]; then
 	json="${json}
@@ -36,6 +36,10 @@ if [ "${kind}" = 'Slave' ]; then
 		json="${json}\"${master}\","
 	done
 	json="${json::-1}],"
+else
+	json="${json}
+		\"soa_edit\": \"${soaEdit}\",
+		\"soa_edit_api\": \"${soaEditApi}\","
 fi
 
 json="${json::-1}
@@ -59,7 +63,7 @@ if [ "${new}" = 0 ]; then
 	eval "$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq -r '@sh "currentKind=\(.kind) currentSoaEdit=\(.soa_edit) currentSoaEditApi=\(.soa_edit_api)"')"
 
 	# Change data if needed
-	if [ "${kind}" != "${currentKind}" ] || [ "${soaEdit}" != "${currentSoaEdit}" ] || [ "${soaEditApi}" != "${currentSoaEditApi}" ]; then
+	if [ "${kind}" != "${currentKind}" ] || ([ "${kind}" != 'Slave' ] && ([ "${soaEdit}" != "${currentSoaEdit}" ] || [ "${soaEditApi}" != "${currentSoaEditApi}" ])); then
 		curl -s -o /dev/stderr -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
 		echo CHANGED
 	fi
