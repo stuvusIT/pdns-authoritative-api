@@ -35,7 +35,7 @@
 - name: Delete unknown zones
   script: >
     scripts/delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-    "{{ pdns_auth_api_zones | map(attribute='name') | list | join(' ') }}"
+    "{{ pdns_auth_api_zones | map(attribute='name') | list | join('" "') }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out
