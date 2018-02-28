@@ -42,11 +42,8 @@
   when: zone.kind | default('Master') != 'Slave'
 
 - name: Upsert records in {{ zone.name }}
-  command:
-    cmd: >
-      /usr/local/bin/pdns-auth-api-upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-      "{{ zone.name }}" "{{ tempfile.path }}"
-    stdin: "{{ zone | to_json }}"
+  script: >
+    scripts/upsert-records "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}" "{{ zone.name }}" "{{ tempfile.path }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: records_out
