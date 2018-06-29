@@ -9,16 +9,52 @@ umask 177
 url="${1}/api/v1/servers/${2}"
 # $2 is the server
 apikey="${apikey:-}"
-zonename="${3}"
-kind="${4}"
-soaEdit="${5}"
-soaEditApi="${6}"
-dnssec="${7}"
-nsec3Iterations="${8}"
-nsec3Salt="${9}"
-shift 9
+tmpfile="${3}"
+zonename="${4}"
 
-if [ "${kind}" = Slave ] && [ "${#}" = 0 ]; then
+# Parse the rest of the parameters
+zone="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones | map(select(.name==$zonename))[0]' < "${tmpfile}")"
+
+jsonParse() {
+	echo "${zone}" | jq -r --arg varname "${1}" '.[$varname]'
+}
+
+jsonParseWithDefault() {
+	value="$(jsonParse "${1}")"
+	if [ "${value}" = null ]; then
+		value="${2}"
+	fi
+	echo "${value}"
+}
+
+jsonParseMandatoryForNonSlave() {
+	value="$(jsonParse "${1}")"
+	if [ "${value}" = null ]; then
+		if [ "${2}" = Slave ]; then
+			value=''
+		else
+			echo "Mandatory variable ${1} not defined"
+			exit 1
+		fi
+	fi
+	echo "${value}"
+}
+
+kind="$(jsonParseWithDefault kind Master)"
+soaEdit="$(jsonParseMandatoryForNonSlave soaEdit "${kind}")"
+soaEditApi="$(jsonParseWithDefault soaEditApi '')"
+dnssec="$(jsonParseWithDefault dnssec false)"
+presigned="$(jsonParseWithDefault presigned false)"
+apiRectify="$(jsonParseWithDefault apiRectify true)"
+nsec3Param="$(jsonParseWithDefault nsec3 '')"
+nsec3Narrow="$(jsonParseWithDefault nsec3Narrow false)"
+masters="$(jsonParse masters)"
+eval "$(echo "${masters}" | jq -r '@sh "mastersAsNewlines=\"\(.)\""')"
+if [ "${mastersAsNewlines}" = null ]; then
+	mastersAsNewlines=''
+fi
+
+if [ "${kind}" = Slave ] && [ "${masters}" = null ]; then
 	echo "Missing nameservers"
 	exit 1
 fi
@@ -30,16 +66,17 @@ json="{
 
 if [ "${kind}" = 'Slave' ]; then
 	json="${json}
-		\"masters\": ["
-
-	for master in "${@}"; do
-		json="${json}\"${master}\","
-	done
-	json="${json::-1}],"
+		\"masters\": ${masters},"
 else
 	json="${json}
 		\"soa_edit\": \"${soaEdit}\",
-		\"soa_edit_api\": \"${soaEditApi}\","
+		\"soa_edit_api\": \"${soaEditApi}\",
+		\"dnssec\": ${dnssec},
+		\"presigned\": ${presigned},
+		\"api_rectify\": ${apiRectify},
+		\"nsec3param\": \"${nsec3Param}\",
+		\"nsec3narrow\": ${nsec3Narrow},"
+
 fi
 
 json="${json::-1}
@@ -60,48 +97,24 @@ fi
 # Already exists - do we need to modify it?
 if [ "${new}" = 0 ]; then
 	# Fetch data
-	eval "$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | jq -r '@sh "currentKind=\(.kind) currentSoaEdit=\(.soa_edit) currentSoaEditApi=\(.soa_edit_api)"')"
+	eval "$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}." | \
+		jq -r '@sh "currentKind=\(.kind) currentSoaEdit=\(.soa_edit) currentSoaEditApi=\(.soa_edit_api) currentDnssec=\(.dnssec) currentPresigned=\(.presigned) currentApiRectify=\(.api_rectify) currentNsec3Param=\(.nsec3param) currentNsec3Narrow=\(.nsec3narrow) currentMasters=\"\(.masters)\""')"
+	if [ "${currentPresigned}" = null ]; then
+		currentPresigned=false
+	fi
 
 	# Change data if needed
-	if [ "${kind}" != "${currentKind}" ] || ([ "${kind}" != 'Slave' ] && ([ "${soaEdit}" != "${currentSoaEdit}" ] || [ "${soaEditApi}" != "${currentSoaEditApi}" ])); then
+echo "${currentMasters} == ${mastersAsNewlines}"
+	if [ "${kind}" != "${currentKind}" ] || ([ "${kind}" != 'Slave' ] && \
+		([ "${soaEdit}" != "${currentSoaEdit}" ] || \
+		[ "${soaEditApi}" != "${currentSoaEditApi}" ] || \
+		[ "${dnssec}" != "${currentDnssec}" ] || \
+		[ "${presigned}" != "${currentPresigned}" ] || \
+		[ "${apiRectify}" != "${currentApiRectify}" ] || \
+		[ "${nsec3Param}" != "${currentNsec3Param}" ] || \
+		[ "${nsec3Narrow}" != "${currentNsec3Narrow}" ])) || \
+		([ "${kind}" == 'Slave' ] && [ "${mastersAsNewlines}" != "${currentMasters}" ]); then
 		curl -s -o /dev/stderr -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
 		echo CHANGED
-	fi
-fi
-
-if [ "${kind}" = 'Slave' ]; then
-	exit 0
-fi
-
-# Verify DNSSEC is in the correct state
-if [ "$(pdnsutil show-zone "${zonename}" | grep -c '^Zone is not actively secured$')" = 1 ]; then
-	# Currently not secured
-	if [ "${dnssec:1}" = 'rue' ]; then
-		pdnsutil secure-zone "${zonename}" > /dev/stderr
-		echo CHANGED
-	fi
-else
-	# Currently secure
-	if [ "${dnssec:1}" = 'alse' ]; then
-		pdnsutil disable-dnssec "${zonename}" > /dev/stderr
-		echo CHANGED
-	fi
-fi
-
-# Configure NSEC3
-if [ "${dnssec:1}" = 'rue' ]; then
-	line="$(pdnsutil show-zone "${zonename}" | grep '^Zone has hashed NSEC3 semantics, configuration: ' || :)"
-	if [ "$(echo "${line}" | wc -l )" = 0 ]; then
-		# NSEC 3 is currently disabled
-		pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}"
-		pdnsutil rectify-zone "${zonename}"
-		echo CHANGED
-	else
-		if [ "$(echo "${line}" | cut -d' ' -f 7)" != 1 ] || [ "$(echo "${line}" | cut -d' ' -f 8)" != 0 ] || [ "$(echo "${line}" | cut -d' ' -f 9)" != "${nsec3Iterations}" ] || [ "$(echo "${line}" | cut -d' ' -f 10)" != "${nsec3Salt}" ]; then
-			# Correct NSEC 3 parameters
-			pdnsutil set-nsec3 "${zonename}" "1 0 ${nsec3Iterations} ${nsec3Salt}"
-			pdnsutil rectify-zone "${zonename}"
-			echo CHANGED
-		fi
 	fi
 fi

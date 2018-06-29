@@ -1,14 +1,4 @@
 ---
-- name: Configure {{ zone.name }}
-  script: >
-    scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}"
-    "{{ zone.name }}" "{{ zone.kind | default('Master') }}" "{{ zone.soaEdit | default('') }}" "{{ zone.soaEditApi | default('') }}"
-    "{{ zone.dnssec | default(false) }}" "{{ zone.nsec3Iterations | default(5) }}" "{{ zone.nsec3Salt | default('dada') }}" "{{ zone.masters | default([]) | join('" "') }}"
-  environment:
-    apikey: "{{ pdns_auth_api_key }}"
-  register: out
-  changed_when: "'CHANGED' in out.stdout | default('')"
-
 - name: Configure metadata for {{ zone.name }}
   script: >
     scripts/update-domain-metadata "{{ zone.name }}"
@@ -56,8 +46,3 @@
     state: absent
   changed_when: false
   when: zone.kind | default('Master') != 'Slave'
-
-# We have to manually rectify the zone, because it's not implemented in the API yet
-- name: Rectify {{ zone.name }}
-  command: pdnsutil rectify-zone "{{ zone.name }}"
-  when: zone.kind | default('Master') != 'Slave' and records_out.changed
