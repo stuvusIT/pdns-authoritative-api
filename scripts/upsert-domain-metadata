@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+set -o nounset
+umask 177
+
+# Parameters
+url="${1}/api/v1/servers/${2}"
+# $2 is the server
+apikey="${apikey:-}"
+tmpfile="${3}"
+zonename="${4}"
+
+# Parse the rest of the parameters
+cleanup() {
+	echo "${1}" | jq 'del(."API-RECTIFY") | del(."NSEC3NARROW") | del(."NSEC3PARAM") | del(."PRESIGNED") | del(."SOA-EDIT") | del(."SOA-EDIT-API")'
+}
+
+# Assign defaults
+meta="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones[$zonename].metadata' < "${tmpfile}")"
+if [ "$(jq -r '.pdns_auth_api_default_metadata' < "${tmpfile}")" != null ]; then
+	meta="$(jq --slurpfile meta <(echo "${meta}") '.pdns_auth_api_default_metadata * $meta[]' < "${tmpfile}")"
+fi
+
+if [ "${meta}" != null ]; then
+	meta="$(cleanup "${meta}")"
+fi
+
+# Get the current state
+current="$(curl -s -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}./metadata" | jq 'map({(.kind): .metadata}) | add')"
+
+# Upsert the current state into the API
+for key in $(echo "${meta}" | jq -r 'to_entries[] | .key'); do
+	desired="$(echo "${meta}" | jq -r --arg varname "${key}" '.[$varname]')"
+	if [ "${desired}" != "$(echo "${current}" | jq -r --arg varname "${key}" '.[$varname]')" ]; then
+		body="$(echo "${desired}" | jq --arg kind "${key}" '{ "kind": $kind, "metadata": . }')"
+		curl -s -X PUT -H "X-API-Key: ${apikey}" --data @<(echo "${body}") "${url}/zones/${zonename}./metadata/${key}"
+		echo CHANGED
+	fi
+done
+
+# Delete unknown metadata
+for key in $(cleanup "${current}" | jq -r 'to_entries[] | .key'); do
+	if [ "$(echo "${meta}" | jq -r --arg varname "${key}" '.[$varname]')" = 'null' ]; then
+		curl -s -X DELETE -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}./metadata/${key}"
+		echo CHANGED
+	fi
+done

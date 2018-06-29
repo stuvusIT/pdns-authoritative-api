@@ -1,6 +1,6 @@
 galaxy_info:
   author: Janne Heß
-  description: Configure PowerDNS zones via the HTTP API 
+  description: Configure PowerDNS zones via the HTTP API
   company: stuvus (https://stuvus.uni-stuttgart.de)
 
   license: CC-BY-SA
@@ -14,12 +14,7 @@ galaxy_info:
     - yakkety
   - name: Debian
     versions:
-    - jessie
-  - name: ArchLinux
-    versions:
-    - all
-    - any
-
+    - stretch
 
   galaxy_tags:
     - dns

@@ -7,33 +7,35 @@ This means this role must target the PowerDNS machine.
 
 ## Requirements
 
-Arch Linux or Ubuntu
+Debian or Ubuntu
 
 ## Role Variables
 
-| Name                                  | Default/Required   | Description                                         |
-|---------------------------------------|:------------------:|-----------------------------------------------------|
-| `pdns_auth_api_connect`               | :heavy_check_mark: | Connect to this URL (e.g. `http://127.0.0.1:1234`)  |
-| `pdns_auth_api_server`                | `localhost`        | Server instance to connect to                       |
-| `pdns_auth_api_key`                   | :heavy_check_mark: | API Key to use (may be empty if you don't have one) |
-| `pdns_auth_api_zones`                 | :heavy_check_mark: | List of DNS zones (see below)                       |
-| `pdns_auth_api_remove_unknown_zones`  | `false`            | Delete zones that are not known to this role        |
+| Name                                 | Default/Required   | Description                                         |
+|--------------------------------------|:------------------:|-----------------------------------------------------|
+| `pdns_auth_api_connect`              | :heavy_check_mark: | Connect to this URL (e.g. `http://127.0.0.1:1234`)  |
+| `pdns_auth_api_server`               | `localhost`        | Server instance to connect to                       |
+| `pdns_auth_api_key`                  | :heavy_check_mark: | API Key to use (may be empty if you don't have one) |
+| `pdns_auth_api_zones`                | :heavy_check_mark: | Name-contents dict of DNS zones (see below)         |
+| `pdns_auth_api_remove_unknown_zones` | `false`            | Delete zones that are not known to this role        |
+| `pdns_auth_api_default_metadata`     |                    | Default metadata that can be overridden per-zone    |
 
 ### DNS Zones
 
-| Name              | Default/Required       | Description                                                                                                                                           |
-|-------------------|:----------------------:|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`            | :heavy_check_mark:     | Name of this zone                                                                                                                                     |
-| `kind`            | `Master`               | Type of this zone (`Master`, `Slave`, or `Native`)                                                                                                    |
-| `soaEdit`         | *not for Slave zones*  | SOA-EDIT value for this zone                                                                                                                          |
-| `soaEditApi`      |                        | SOA-EDIT-API value. Is automatically initialized by PowerDNS with `DEFAULT`                                                                           |
-| `dnssec`          | `false`                | Enable DNSSEC and NSEC3 for this zone                                                                                                                 |
-| `defaultTTL`      | *not for Slave zones*  | TTL for all RRsets with no TTL explicitly set                                                                                                         |
-| `nsec3Iterations` | `5`                    | Amount of NSEC3 iterations                                                                                                                            |
-| `nsec3Salt`       | `dada`                 | Salt to use when hashing for NSEC3                                                                                                                    |
-| `masters`         | *only for Slave zones* | List of master IPs (for `Slave` zones). This is not mandatory when creating a `Master` or `Native` zone                                               |
-| `metadata`        |                        | Dict with the domain metadata. Items that are present in the database, but not here are removed. Please do not set `SOA-EDIT` and `SOA-EDIT-API` here |
-| `records`         | *not for Slave zones*  | List with all records in this zone (see below)                                                                                                        |
+| Name          | Default/Required      | Description                                                                                     |
+|---------------|:---------------------:|-------------------------------------------------------------------------------------------------|
+| `kind`        | `Master`              | Type of this zone (`Master`, `Slave`, or `Native`)                                              |
+| `soaEdit`     | (:heavy_check_mark:)  | (not for Slave zones)  SOA-EDIT value for this zone                                             |
+| `soaEditApi`  | (`{{soaEdit}}`        | (not for slave zones) SOA-EDIT-API value                                                        |
+| `dnssec`      | `false`               | (not for slave zones) Enable DNSSEC and NSEC3 for this zone                                     |
+| `presigned`   | `false`               | (not for slave zones) Whether the zone is presigned and does not need to be signed by PowerDNS  |
+| `apiRectify`  | `true`                | (not for slave zones) Whether to automatically rectify the one on changes via the API           |
+| `nsec3Param`  |                       | (not for slave zones) NSEC3PARAM record value                                                   |
+| `nsec3Narrow` | `false`               | (not for slave zones) Whether to use NSEC3 in narrow mode (white lies)                          |
+| `masters`     | (:heavy_check_mark:)  | List of masters of this zone                                                                    |
+| `records`     | *not for Slave zones* | List with all records in this zone (see below)                                                  |
+| `defaultTTL`  | (:heavy_check_mark:)  | (not for slave zones) TTL for all RRsets with no TTL explicitly set                             |
+| `metadata`    |                       | Dict with the domain metadata. Items that are present in the database, but not here are removed |
 
 ### Records
 
