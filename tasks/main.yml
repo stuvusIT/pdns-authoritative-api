@@ -1,43 +1,62 @@
 ---
-- name: Update repositories cache (apt)
-  apt:
-    update_cache: yes
-  changed_when: false
-  when: ansible_pkg_mgr == "apt"
-
-- name: Install required packages (apt)
+- name: Install required packages
   apt:
     name: "{{ item }}"
   with_items:
     - curl
     - jq
-  when: ansible_pkg_mgr == "apt"
 
-- name: Update repositories cache (pacman)
-  pacman:
-    update_cache: yes
+- name: Create temporary file for my hostvars
+  tempfile:
+    suffix: .json
+  register: tmp
   changed_when: false
-  when: ansible_pkg_mgr == "pacman"
 
-- name: Install required packages (pacman)
-  pacman:
-    name: "{{ item }}"
-  with_items:
-    - curl
-    - jq
-  when: ansible_pkg_mgr == "pacman"
+- name: Write my hostvars to temporary file
+  copy:
+    content: "{{ hostvars[inventory_hostname] | to_json }}"
+    dest: "{{ tmp.path }}"
+  changed_when: false
 
-- include_tasks: single-zone.yml
-  with_items: "{{ pdns_auth_api_zones | mandatory }}"
-  loop_control:
-    loop_var: zone
+- name: Configure zones
+  script: >
+    scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  with_items: "{{ pdns_auth_api_zones.keys() }}"
+
+- name: Configure metadata for zones
+  script: >
+    scripts/upsert-domain-metadata "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  with_items: "{{ pdns_auth_api_zones.keys() }}"
+
+- name: Upsert records in zones
+  script: >
+    scripts/upsert-records "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  when: "pdns_auth_api_zones[item].kind | default('Master') == 'Master'"
+  register: out
+  changed_when: "'CHANGED' in out.stdout | default('')"
+  with_items: "{{ pdns_auth_api_zones.keys() }}"
 
 - name: Delete unknown zones
   script: >
-    scripts/delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}"
-    "{{ pdns_auth_api_zones | map(attribute='name') | list | join('" "') }}"
+    scripts/delete-zones "{{ pdns_auth_api_connect }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}"
   environment:
     apikey: "{{ pdns_auth_api_key }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
   when: pdns_auth_api_remove_unknown_zones
+
+- name: Remove temporary file
+  file:
+    path: tmp.path
+    state: absent
+  changed_when: false

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
@@ -9,10 +9,11 @@ umask 177
 url="${1}/api/v1/servers/${2}"
 # $2 is the server
 apikey="${apikey:-}"
-zonename="${3}"
-# The rrset is passed via file because the quotes are mangled when
-# specifying the JSON on the command line.
-expected="$(< "${4}")"
+tmpfile="${3}"
+zonename="${4}"
+
+# Parse the rest of the parameters
+expected="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones[$zonename]' < "${tmpfile}")"
 
 # Parse zone metadata
 eval "$(echo "${expected}" | jq -r '@sh "defaultTtl=\(.defaultTTL)"')"

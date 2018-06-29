@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 set -o pipefail
@@ -8,13 +8,16 @@ set -o nounset
 url="${1}/api/v1/servers/${2}"
 # $2 is the server
 apikey="${apikey:-}"
-shift 2
+tmpfile="${3}"
+
+expected="$(jq '.pdns_auth_api_zones' < "${tmpfile}")"
 
 changed=0
 while IFS='' read -r dom; do
 	ok=0
-	for param in "${@}"; do
-		if [ "${dom:1:-2}" = "${param}" ]; then
+	for param in $(echo "${expected}" | jq 'to_entries[] | (.key + ".")'); do
+		echo "${dom} == ${param}"
+		if [ "${dom}" = "${param}" ]; then
 			ok=1
 			break
 		fi
