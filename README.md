@@ -7,7 +7,7 @@ This means this role must target the PowerDNS machine.
 
 ## Requirements
 
-Arch Linux or Ubuntu
+Debian or Ubuntu
 
 ## Role Variables
 

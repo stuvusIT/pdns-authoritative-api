@@ -1,31 +1,37 @@
 ---
-- name: Update repositories cache (apt)
-  apt:
-    update_cache: yes
-  changed_when: false
-  when: ansible_pkg_mgr == "apt"
-
-- name: Install required packages (apt)
+- name: Install required packages
   apt:
     name: "{{ item }}"
   with_items:
     - curl
     - jq
-  when: ansible_pkg_mgr == "apt"
 
-- name: Update repositories cache (pacman)
-  pacman:
-    update_cache: yes
+- name: Create temporary file for my hostvars
+  tempfile:
+    suffix: .json
+  register: tmp
   changed_when: false
-  when: ansible_pkg_mgr == "pacman"
 
-- name: Install required packages (pacman)
-  pacman:
-    name: "{{ item }}"
-  with_items:
-    - curl
-    - jq
-  when: ansible_pkg_mgr == "pacman"
+- name: Write my hostvars to temporary file
+  copy:
+    content: "{{ hostvars[inventory_hostname] | to_json }}"
+    dest: "{{ tmp.path }}"
+  changed_when: false
+
+- name: Configure zones
+  script: >
+    scripts/upsert-zone "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
+  environment:
+    apikey: "{{ pdns_auth_api_key }}"
+  register: conf
+  changed_when: "'CHANGED' in conf.stdout | default('')"
+  with_items: "{{ pdns_auth_api_zones | map(attribute='name') | list }}"
+
+- name: Remove temporary file
+  file:
+    path: tmp.path
+    state: absent
+  changed_when: false
 
 - include_tasks: single-zone.yml
   with_items: "{{ pdns_auth_api_zones | mandatory }}"
