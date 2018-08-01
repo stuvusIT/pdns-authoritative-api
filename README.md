@@ -2,9 +2,6 @@
 
 This Ansible role managed DNS zones via the PowerDNS HTTP API.
 
-While it could run on any other machine and access the API remotely, the API currently lacks functionality, so `pdnsutil` is invoked.
-This means this role must target the PowerDNS machine.
-
 ## Requirements
 
 Debian or Ubuntu

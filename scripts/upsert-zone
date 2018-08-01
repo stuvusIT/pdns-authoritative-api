@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+set -x
 set -e
 set -o nounset
 set -o pipefail
@@ -90,7 +91,12 @@ if ! [ "$(curl -s -o /dev/stderr -w "%{http_code}" -H "X-API-Key: ${apikey}" "${
 		json="${json::-2},\"nameservers\": [ \"dummy.ns.\" ]}"
 	fi
 	# Create zone
-	curl -s -o /dev/stderr -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones"
+	echo $json
+	ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones")"
+	if [ "${ret}" != 201 ]; then
+		echo "curl returned HTTP code ${ret} when creating zone"
+		exit 1
+	fi
 	new=1
 fi
 
@@ -114,7 +120,11 @@ echo "${currentMasters} == ${mastersAsNewlines}"
 		[ "${nsec3Param}" != "${currentNsec3Param}" ] || \
 		[ "${nsec3Narrow}" != "${currentNsec3Narrow}" ])) || \
 		([ "${kind}" == 'Slave' ] && [ "${mastersAsNewlines}" != "${currentMasters}" ]); then
-		curl -s -o /dev/stderr -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}."
+		ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X PUT -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones/${zonename}.")"
+		if [ "${ret}" != 204 ]; then
+			echo "curl returned HTTP code ${ret} when updating zone details"
+			exit 1
+		fi
 		echo CHANGED
 	fi
 fi
