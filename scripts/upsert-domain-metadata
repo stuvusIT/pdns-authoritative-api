@@ -35,7 +35,11 @@ for key in $(echo "${meta}" | jq -r 'to_entries[] | .key'); do
 	desired="$(echo "${meta}" | jq -r --arg varname "${key}" '.[$varname]')"
 	if [ "${desired}" != "$(echo "${current}" | jq -r --arg varname "${key}" '.[$varname]')" ]; then
 		body="$(echo "${desired}" | jq --arg kind "${key}" '{ "kind": $kind, "metadata": . }')"
-		curl -s -X PUT -H "X-API-Key: ${apikey}" --data @<(echo "${body}") "${url}/zones/${zonename}./metadata/${key}"
+		ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X PUT -H "X-API-Key: ${apikey}" --data @<(echo "${body}") "${url}/zones/${zonename}./metadata/${key}")"
+		if [ "${ret}" != 200 ]; then
+			echo "curl returned HTTP code ${ret} when upserting ${key} metadata"
+			exit 1
+		fi
 		echo CHANGED
 	fi
 done
@@ -43,7 +47,11 @@ done
 # Delete unknown metadata
 for key in $(cleanup "${current}" | jq -r 'to_entries[] | .key'); do
 	if [ "$(echo "${meta}" | jq -r --arg varname "${key}" '.[$varname]')" = 'null' ]; then
-		curl -s -X DELETE -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}./metadata/${key}"
+		ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X DELETE -H "X-API-Key: ${apikey}" "${url}/zones/${zonename}./metadata/${key}")"
+		if [ "${ret}" != 200 ]; then
+			echo "curl returned HTTP code ${ret} when deleting ${key} metadata"
+			exit 1
+		fi
 		echo CHANGED
 	fi
 done

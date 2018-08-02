@@ -24,7 +24,11 @@ while IFS='' read -r dom; do
 	done
 	if [ "${ok}" = 0 ]; then
 		changed=1
-		curl -s -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}"
+		ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}")"
+		if [ "${ret}" != 200 ]; then
+			echo "curl returned HTTP code ${ret} when deleting the ${dom} zone"
+			exit 1
+		fi
 	fi
 done < <(curl -s -H "X-API-Key: ${apikey}" "${url}/zones" | jq '.[] | .name')
 
