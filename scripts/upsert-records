@@ -19,7 +19,7 @@ expected="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones[$zonename]' < 
 eval "$(echo "${expected}" | jq -r '@sh "defaultTtl=\(.defaultTTL)"')"
 eval "$(echo "${expected}" | jq -r '@sh "expectedSoa=\(.records | .[] | to_entries | .[] | select(.key == "SOA").value | .[] | select(.c != null).c)"')"
 
-if [ -z "${expectedSoa}" ]; then
+if [ -z "${expectedSoa:-}" ]; then
 	echo 'No SOA record found' > /dev/stderr
 	exit 1
 fi
