@@ -16,7 +16,6 @@ changed=0
 while IFS='' read -r dom; do
 	ok=0
 	for param in $(echo "${expected}" | jq 'to_entries[] | (.key + ".")'); do
-		echo "${dom} == ${param}"
 		if [ "${dom}" = "${param}" ]; then
 			ok=1
 			break
@@ -25,7 +24,7 @@ while IFS='' read -r dom; do
 	if [ "${ok}" = 0 ]; then
 		changed=1
 		ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X DELETE -o /dev/stderr -H "X-API-Key: ${apikey}" "${url}/zones/${dom:1:-1}")"
-		if [ "${ret}" != 200 ]; then
+		if [ "${ret}" != 204 ]; then
 			echo "curl returned HTTP code ${ret} when deleting the ${dom} zone"
 			exit 1
 		fi
