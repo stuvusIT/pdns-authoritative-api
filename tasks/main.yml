@@ -1,10 +1,9 @@
 ---
 - name: Install required packages
   apt:
-    name: "{{ item }}"
-  with_items:
-    - curl
-    - jq
+    name:
+      - curl
+      - jq
 
 - name: Create temporary file for my hostvars
   tempfile:
@@ -25,7 +24,7 @@
     apikey: "{{ pdns_auth_api_key }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
-  with_items: "{{ pdns_auth_api_zones.keys() }}"
+  with_items: "{{ pdns_auth_api_zones | list }}"
 
 - name: Configure metadata for zones
   script: >
@@ -34,7 +33,7 @@
     apikey: "{{ pdns_auth_api_key }}"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
-  with_items: "{{ pdns_auth_api_zones.keys() }}"
+  with_items: "{{ pdns_auth_api_zones | list }}"
 
 - name: Upsert records in zones
   script: >
@@ -44,7 +43,7 @@
   when: "pdns_auth_api_zones[item].kind | default('Master') == 'Master'"
   register: out
   changed_when: "'CHANGED' in out.stdout | default('')"
-  with_items: "{{ pdns_auth_api_zones.keys() }}"
+  with_items: "{{ pdns_auth_api_zones | list }}"
 
 - name: Delete unknown zones
   script: >
