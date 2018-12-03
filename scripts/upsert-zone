@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
 set -e
 set -o nounset
 set -o pipefail
@@ -34,7 +33,7 @@ jsonParseMandatoryForNonSlave() {
 		if [ "${2}" = Slave ]; then
 			value=''
 		else
-			echo "Mandatory variable ${1} not defined"
+			echo "Mandatory variable ${1} not defined" >&2
 			exit 1
 		fi
 	fi
@@ -91,7 +90,6 @@ if ! [ "$(curl -s -o /dev/stderr -w "%{http_code}" -H "X-API-Key: ${apikey}" "${
 		json="${json::-2},\"nameservers\": [ \"dummy.ns.\" ]}"
 	fi
 	# Create zone
-	echo $json
 	ret="$(curl -s -o /dev/stderr -w "%{http_code}" -X POST -H "X-API-Key: ${apikey}" -d "${json}" "${url}/zones")"
 	if [ "${ret}" != 201 ]; then
 		echo "curl returned HTTP code ${ret} when creating zone"
