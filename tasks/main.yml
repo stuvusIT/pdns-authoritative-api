@@ -4,6 +4,7 @@
     name:
       - curl
       - jq
+      - python3-requests
 
 - name: Create temporary file for my hostvars
   tempfile:
@@ -11,9 +12,13 @@
   register: tmp
   changed_when: false
 
-- name: Write my hostvars to temporary file
+- name: Write relevant vars to temporary file
   copy:
-    content: "{{ hostvars[inventory_hostname] | to_json }}"
+    content: |
+      {{ {
+        "pdns_auth_api_zones": pdns_auth_api_zones,
+        "pdns_auth_api_default_metadata": pdns_auth_api_default_metadata | default(None),
+      } | to_json() }}
     dest: "{{ tmp.path }}"
   changed_when: false
 
@@ -37,12 +42,12 @@
 
 - name: Upsert records in zones
   script: >
-    scripts/upsert-records "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
+    scripts/upsert-records.py "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
   environment:
-    apikey: "{{ pdns_auth_api_key }}"
+    PDNS_AUTH_API_KEY: "{{ pdns_auth_api_key }}"
   when: "pdns_auth_api_zones[item].kind | default('Master') == 'Master'"
   register: out
-  changed_when: "'CHANGED' in out.stdout | default('')"
+  changed_when: "'\"changetype\"' in out.stdout"
   with_items: "{{ pdns_auth_api_zones | list }}"
 
 - name: Delete unknown zones
