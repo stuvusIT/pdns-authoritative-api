@@ -53,7 +53,7 @@ def main():
             **rrset,
             "changetype": "REPLACE",
         }
-        for key, rrset in target_rrsets.items()
+        for key, rrset in target_rrsets.items() if rrset not in remote_rrsets.values()
     ] + [
         {
             "name": rrset["name"],
