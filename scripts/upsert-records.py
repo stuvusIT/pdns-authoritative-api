@@ -53,7 +53,7 @@ def main():
             **rrset,
             "changetype": "REPLACE",
         }
-        for key, rrset in target_rrsets.items() if rrset not in remote_rrsets.values()
+        for key, rrset in target_rrsets.items() if normalized_rrset(rrset) not in remote_rrsets.values()
     ] + [
         {
             "name": rrset["name"],
@@ -96,10 +96,7 @@ def http_get_rrsets(server_location, server_id, zone_id, api_key):
     headers = {"X-API-Key": api_key}
     print("GET {}".format(url), file=sys.stderr)
     rrset_list = requests.get(url, headers=headers).json()["rrsets"]
-    for rrset in rrset_list:
-        if "comments" in rrset:
-            del rrset["comments"]
-    return index_rrsets(rrset_list)
+    return index_rrsets([ normalized_rrset(rrset) for rrset in rrset_list ])
 
 
 def http_patch_rrsets(server_location, server_id, zone_id, api_key, rrset_patches):
@@ -124,6 +121,18 @@ def http_patch_rrsets(server_location, server_id, zone_id, api_key, rrset_patche
     headers = {"X-API-Key": api_key}
     print("PATCH {}".format(url), file=sys.stderr)
     requests.patch(url, headers=headers, data=json.dumps({"rrsets": rrset_patches}))
+
+
+def normalized_rrset(rrset):
+    """
+    Returns a copy of the given RRset with comments removed and records sorted.
+    """
+    normalized = copy.copy(rrset)
+    if "comments" in rrset:
+        del normalized["comments"]
+    if "records" in normalized:
+        normalized["records"].sort(key=lambda record: record["content"])
+    return normalized
 
 
 def make_rrsets(records, default_ttl):
