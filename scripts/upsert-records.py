@@ -42,11 +42,26 @@ def main():
 
     remote_rrsets = http_get_rrsets(arg_server_location, arg_server_id, arg_zone_id, arg_api_key)
 
-    target_rrsets = patch_soa(
+    declared_rrsets = patch_soa(
         make_rrsets(zone["records"], zone["defaultTTL"]),
         remote_rrsets,
         arg_zone_id,
     )
+
+    owned_keys = get_owned_keys_from_rrsets(remote_rrsets)
+
+    conflicting_rrset_list = [ rrset for key, rrset in declared_rrsets.items() if key in remote_rrsets and key not in owned_keys ]
+    if len(conflicting_rrset_list) != 0:
+        for rrset in conflicting_rrset_list:
+            for record in rrset["records"]:
+                print(
+                    "Could not write record: {} {} {}"
+                    .format(rrset["name"], rrset["type"], record["content"]),
+                    file=sys.stderr,
+                )
+        raise ValueError("Attempted to overwrite foreign-owned record(s)")
+
+    target_rrsets = add_heritage_records(declared_rrsets, zone["defaultTTL"])
 
     rrset_patches = [
         {
@@ -60,7 +75,7 @@ def main():
             "type": rrset["type"],
             "changetype": "DELETE",
         }
-        for key, rrset in remote_rrsets.items() if key not in target_rrsets
+        for key, rrset in remote_rrsets.items() if key in owned_keys and key not in target_rrsets
     ]
 
     if len(rrset_patches) != 0:
@@ -261,6 +276,86 @@ def extract_soa(rrsets, zone_id):
     if len(rrset["records"]) > 1:
         raise ValueError("Zone has SOA RRset with multiple records")
     return rrset["records"][0]["content"]
+
+
+def get_owned_keys_from_rrsets(rrsets):
+    """
+    Given a complete dict of RRsets for a zone, returns the list of keys that
+    are owned by this Ansible role.
+    For this purpose, a key is a pair of name and type.
+    Ownership of such a key is indicated by the presence of such a record:
+
+    _ansible-pdns-api.<name> TXT "heritage=ansible-pdns-api,type=<type>"
+    """
+    owned_keys = set()
+    for rrset in rrsets.values():
+        if rrset["type"] == "TXT":
+            owned_keys.update(get_owned_keys_from_rrset(rrset))
+    return owned_keys
+
+
+def get_owned_keys_from_rrset(rrset):
+    """
+    Given an RRset of type TXT, returns the key for which it indicates
+    ownership.
+    See get_owned_keys_from_rrsets for more information.
+    """
+    if rrset["type"] != "TXT":
+        raise ValueError("Can not read heritage from RRset of type {}, must be type TXT".format(rrset["type"]))
+    # Get name
+    name_prefix = "_ansible-pdns-api."
+    if not rrset["name"].startswith(name_prefix):
+        return set()
+    name = rrset["name"][len(name_prefix):]
+    # Get types
+    owned_keys = set()
+    record_prefix = '"heritage=ansible-pdns-api,type='
+    record_suffix = '"'
+    for record in rrset["records"]:
+        if not record["content"].startswith(record_prefix) or not record["content"].startswith(record_suffix):
+            print(
+                "WARNING: Malformed heritage record: {} {} {}"
+                .format(rrset["name"], rrset["type"], record["content"]),
+                file=sys.stderr,
+            )
+        else:
+            owned_type = record["content"][len(record_prefix):-len(record_suffix)]
+            owned_keys.add((name, owned_type))
+    return owned_keys
+
+
+def add_heritage_records(rrsets, default_ttl):
+    """
+    Adds heritage records to a copy of the given dict of RRsets and returns
+    the result.
+    For each contained record of name <name> and type <type>, the added heritage
+    record has the following form:
+
+    _ansible-pdns-api.<name> TXT "heritage=ansible-pdns-api,type=<type>"
+
+    Parameters
+    ----------
+    rrsets : dict
+        Dict of RRsets.
+    default_ttl : int
+        TTL to use for the heritage records.
+    """
+    extended_rrsets = copy.copy(rrsets)
+    for rrset in rrsets.values():
+        heritage_name = "_ansible-pdns-api.{}".format(rrset["name"])
+        key = (heritage_name, "TXT")
+        if key not in extended_rrsets:
+            extended_rrsets[key] = {
+                "name": heritage_name,
+                "type": "TXT",
+                "records": [],
+                "ttl": default_ttl,
+            }
+        extended_rrsets[key]["records"].append({
+            "content": '"heritage=ansible-pdns-api,type={}"'.format(rrset["type"]),
+            "disabled": False,
+        })
+    return extended_rrsets
 
 
 # Execute only if run as a script.
