@@ -50,12 +50,18 @@ def main():
 
     owned_keys = get_owned_keys_from_rrsets(remote_rrsets)
 
-    conflicting_rrset_list = [ rrset for key, rrset in declared_rrsets.items() if key in remote_rrsets and key not in owned_keys ]
+    conflicting_rrset_list = [ (key, rrset) for key, rrset in declared_rrsets.items() if key in remote_rrsets and key not in owned_keys and key[1] not in ["NS", "SOA"] ]
     if len(conflicting_rrset_list) != 0:
-        for rrset in conflicting_rrset_list:
+        for key, rrset in conflicting_rrset_list:
             for record in rrset["records"]:
                 print(
                     "Could not write record: {} {} {}"
+                    .format(rrset["name"], rrset["type"], record["content"]),
+                    file=sys.stderr,
+                )
+            for record in remote_rrsets[key]["records"]:
+                print(
+                    " Hint: Would overwrite: {} {} {}"
                     .format(rrset["name"], rrset["type"], record["content"]),
                     file=sys.stderr,
                 )
