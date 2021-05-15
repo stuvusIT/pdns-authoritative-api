@@ -42,15 +42,18 @@ def main():
 
     remote_rrsets = http_get_rrsets(arg_server_location, arg_server_id, arg_zone_id, arg_api_key)
 
-    declared_rrsets = patch_soa(
-        make_rrsets(zone["records"], zone["defaultTTL"]),
-        remote_rrsets,
-        arg_zone_id,
+    target_rrsets = add_heritage_records(
+        patch_soa(
+            make_rrsets(zone["records"], zone["defaultTTL"]),
+            remote_rrsets,
+            arg_zone_id,
+        ),
+        zone["defaultTTL"],
     )
 
     owned_keys = get_owned_keys_from_rrsets(remote_rrsets)
 
-    conflicting_rrset_list = [ (key, rrset) for key, rrset in declared_rrsets.items() if key in remote_rrsets and key not in owned_keys and key[1] not in ["NS", "SOA"] ]
+    conflicting_rrset_list = [ (key, rrset) for key, rrset in target_rrsets.items() if key in remote_rrsets and key not in owned_keys and key[1] not in ["NS", "SOA"] ]
     if len(conflicting_rrset_list) != 0:
         for key, rrset in conflicting_rrset_list:
             for record in rrset["records"]:
@@ -66,8 +69,6 @@ def main():
                     file=sys.stderr,
                 )
         raise ValueError("Attempted to overwrite foreign-owned record(s)")
-
-    target_rrsets = add_heritage_records(declared_rrsets, zone["defaultTTL"])
 
     rrset_patches = [
         {
@@ -312,9 +313,10 @@ def get_owned_keys_from_rrset(rrset):
     name_prefix = "_ansible-pdns-api."
     if not rrset["name"].startswith(name_prefix):
         return set()
+    # Own the heritage record itself:
+    owned_keys = { (rrset["name"], "TXT") }
+    # Own the keys referenced by the heritage record:
     name = rrset["name"][len(name_prefix):]
-    # Get types
-    owned_keys = set()
     record_prefix = '"heritage=ansible-pdns-api,type='
     record_suffix = '"'
     for record in rrset["records"]:
