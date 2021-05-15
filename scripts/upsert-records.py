@@ -117,7 +117,9 @@ def http_get_rrsets(server_location, server_id, zone_id, api_key):
     url = "{}/api/v1/servers/{}/zones/{}.".format(server_location, server_id, zone_id)
     headers = {"X-API-Key": api_key}
     print("GET {}".format(url), file=sys.stderr)
-    rrset_list = requests.get(url, headers=headers).json()["rrsets"]
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    rrset_list = response.json()["rrsets"]
     return index_rrsets([ normalized_rrset(rrset) for rrset in rrset_list ])
 
 
@@ -142,7 +144,7 @@ def http_patch_rrsets(server_location, server_id, zone_id, api_key, rrset_patche
     url = "{}/api/v1/servers/{}/zones/{}.".format(server_location, server_id, zone_id)
     headers = {"X-API-Key": api_key}
     print("PATCH {}".format(url), file=sys.stderr)
-    requests.patch(url, headers=headers, data=json.dumps({"rrsets": rrset_patches}))
+    requests.patch(url, headers=headers, data=json.dumps({"rrsets": rrset_patches})).raise_for_status()
 
 
 def normalized_rrset(rrset):
