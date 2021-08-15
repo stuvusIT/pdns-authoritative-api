@@ -72,17 +72,17 @@ def main():
 
     rrset_patches = [
         {
-            **rrset,
-            "changetype": "REPLACE",
-        }
-        for key, rrset in target_rrsets.items() if normalized_rrset(rrset) not in remote_rrsets.values()
-    ] + [
-        {
             "name": rrset["name"],
             "type": rrset["type"],
             "changetype": "DELETE",
         }
         for key, rrset in remote_rrsets.items() if key in owned_keys and key not in target_rrsets
+    ] + [
+        {
+            **rrset,
+            "changetype": "REPLACE",
+        }
+        for key, rrset in target_rrsets.items() if normalized_rrset(rrset) not in remote_rrsets.values()
     ]
 
     if len(rrset_patches) != 0:
