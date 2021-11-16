@@ -144,7 +144,13 @@ def http_patch_rrsets(server_location, server_id, zone_id, api_key, rrset_patche
     url = "{}/api/v1/servers/{}/zones/{}.".format(server_location, server_id, zone_id)
     headers = {"X-API-Key": api_key}
     print("PATCH {}".format(url), file=sys.stderr)
-    requests.patch(url, headers=headers, data=json.dumps({"rrsets": rrset_patches})).raise_for_status()
+    body = json.dumps({"rrsets": rrset_patches})
+    try:
+        requests.patch(url, headers=headers, data=body).raise_for_status()
+    except:
+        print("Request body was:", file=sys.stderr)
+        print(body, file=sys.stderr)
+        raise
 
 
 def normalized_rrset(rrset):
