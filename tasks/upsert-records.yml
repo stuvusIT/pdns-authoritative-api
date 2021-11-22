@@ -1,0 +1,13 @@
+- name: Upsert records in zone {{ zone }}
+  script: >
+    scripts/upsert-records.py "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ zone }}"
+  environment:
+    PDNS_AUTH_API_KEY: "{{ pdns_auth_api_key }}"
+  when: "pdns_auth_api_zones[zone].kind | default('Master') == 'Master'"
+  register: result
+  changed_when: "'PATCH ' in (result.stdout | default(''))"
+
+- name: Print changes in zone {{ zone }}
+  debug:
+    var: result.stdout_lines
+  when: result.changed

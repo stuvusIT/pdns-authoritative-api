@@ -40,15 +40,10 @@
   changed_when: "'CHANGED' in out.stdout | default('')"
   with_items: "{{ pdns_auth_api_zones | list }}"
 
-- name: Upsert records in zones
-  script: >
-    scripts/upsert-records.py "{{ pdns_auth_api_connect | mandatory }}" "{{ pdns_auth_api_server }}" "{{ tmp.path }}" "{{ item }}"
-  environment:
-    PDNS_AUTH_API_KEY: "{{ pdns_auth_api_key }}"
-  when: "pdns_auth_api_zones[item].kind | default('Master') == 'Master'"
-  register: out
-  changed_when: "'\"changetype\"' in out.stdout"
-  with_items: "{{ pdns_auth_api_zones | list }}"
+- include_tasks: upsert-records.yml
+  loop: "{{ pdns_auth_api_zones | list }}"
+  loop_control:
+    loop_var: zone
 
 - name: Delete unknown zones
   script: >
