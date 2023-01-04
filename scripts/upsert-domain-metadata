@@ -18,7 +18,7 @@ cleanup() {
 }
 
 # Assign defaults
-meta="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones[$zonename].metadata' < "${tmpfile}")"
+meta="$(jq --arg zonename "${zonename}" '.pdns_auth_api_zones[$zonename].metadata // {}' < "${tmpfile}")"
 if [ "$(jq -r '.pdns_auth_api_default_metadata' < "${tmpfile}")" != null ]; then
 	meta="$(jq --slurpfile meta <(echo "${meta}") '.pdns_auth_api_default_metadata * $meta[]' < "${tmpfile}")"
 fi
